@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="An adjacency matrix of character co-occurrences in A Storm of Swords.">
+  <title>Game of Thrones Character Co-occurrence Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="d3.min.js"></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="masthead">
+      <div class="title-block">
+        <p class="eyebrow">LITERARY CHARACTERS · WEIGHTED UNDIRECTED NETWORK</p>
+        <h1>Game of Thrones: Who Appears Together in the Narrative?</h1>
+        <p class="intro">A character co-occurrence matrix for <em>A Storm of Swords</em> · Darker color means more co-occurrences.</p>
+      </div>
+      <p class="source-note"><span class="source-mark"></span> BASED ON CHARACTER CO-OCCURRENCE DATA</p>
+    </header>
+
+    <section class="network-stats" aria-label="Network overview">
+      <p><strong id="character-count">—</strong><span>CHARACTERS</span></p>
+      <p><strong id="relationship-count">—</strong><span>UNDIRECTED EDGES</span></p>
+      <p><strong id="weight-range">—</strong><span>CO-OCCURRENCE RANGE</span></p>
+    </section>
+
+    <section class="explorer" aria-label="Character co-occurrence matrix">
+      <div class="toolbar">
+        <div class="toolbar-group search-group" aria-label="Find and order characters">
+          <div class="control search-control">
+            <label class="control-label" for="character-search">Find a character</label>
+            <div class="search-input-wrap">
+              <input id="character-search" type="search" placeholder="Type a character name…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-expanded="false" aria-controls="search-suggestions">
+              <button id="clear-query" class="clear-query" type="button" aria-label="Clear search query" title="Clear search query" hidden>×</button>
+            </div>
+            <span id="search-message" class="search-message" aria-live="polite"></span>
+            <div id="search-suggestions" class="search-suggestions" role="listbox" aria-label="Character suggestions" hidden></div>
+          </div>
+          <label class="control sort-control">
+            <span>Order characters</span>
+            <select id="sort-order" disabled>
+              <option value="community">Communities (default)</option>
+              <option value="degree">Number of connections</option>
+              <option value="strength">Total co-occurrences</option>
+              <option value="name">Character name</option>
+            </select>
+          </label>
+        </div>
+        <div class="toolbar-group filter-group" aria-label="Filter and matrix view">
+          <fieldset class="control weight-control">
+            <legend>Minimum co-occurrences</legend>
+            <div class="threshold-inputs">
+              <input id="weight-filter" type="range" min="1" max="1" step="1" value="1" aria-label="Minimum co-occurrences slider" disabled>
+              <input id="weight-number" type="number" min="1" max="1" step="1" value="1" aria-label="Minimum co-occurrences value" disabled>
+            </div>
+            <div id="threshold-presets" class="threshold-presets" aria-label="Threshold shortcuts">
+              <button type="button" data-threshold="min" disabled>All</button>
+              <button type="button" data-threshold="10" disabled>≥ 10</button>
+              <button type="button" data-threshold="20" disabled>≥ 20</button>
+              <button type="button" data-threshold="50" disabled>≥ 50</button>
+            </div>
+          </fieldset>
+          <fieldset class="view-toggle">
+            <legend>Matrix view</legend>
+            <div class="view-segment">
+              <button type="button" data-view="overview" aria-pressed="true" disabled>Overview</button>
+              <button type="button" data-view="detail" aria-pressed="false" disabled>Zoom in</button>
+            </div>
+          </fieldset>
+          <button id="clear-selection" class="action-button" type="button" disabled>Clear selection</button>
+          <button id="reset-view" class="action-button" type="button">Reset view</button>
+        </div>
+      </div>
+
+      <div class="summary-bar" aria-live="polite">
+        <p id="matrix-summary">Loading network data…</p>
+        <p class="matrix-hint">Overview shows the full pattern. Search for a character or zoom in to read names.</p>
+      </div>
+      <div id="selection-summary" class="selection-summary" hidden>
+        <p id="selection-summary-text"></p>
+        <button id="show-details" class="text-action" type="button" aria-controls="detail-panel">View details</button>
+        <button id="clear-selection-inline" class="text-action" type="button">Clear selection</button>
+      </div>
+
+      <div class="explorer-layout">
+        <section class="matrix-panel" aria-label="Co-occurrence matrix visualization">
+          <div id="matrix-help" class="sr-only">Use the arrow keys to move through cells. Press Enter or Space to pin relationship details. Press Escape to clear the selection.</div>
+          <div class="matrix-viewport" id="matrix-viewport" tabindex="0" aria-label="Character co-occurrence matrix">
+            <div id="matrix" class="matrix-canvas"></div>
+            <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+            <div id="load-error" class="load-error" role="alert" hidden>
+              <p id="load-error-summary"></p>
+              <button id="retry-load" class="action-button" type="button">Retry loading data</button>
+              <details><summary>Technical details</summary><pre id="load-error-detail"></pre></details>
+            </div>
+            <div id="matrix-empty-state" class="matrix-empty-state" hidden>
+              <p>No relationships meet this threshold.</p>
+              <button id="restore-all-relationships" class="action-button" type="button">Show all relationships</button>
+            </div>
+          </div>
+          <div class="overview-hint">
+            <span>Overview: inspect the overall structure; search for a character or zoom in to read names.</span>
+            <button type="button" data-view="detail" class="zoom-cta">Zoom in</button>
+          </div>
+          <button id="mobile-show-details" class="mobile-show-details action-button" type="button" aria-controls="detail-panel" aria-expanded="false" hidden>View details</button>
+          <div class="matrix-footer">
+            <div id="weight-legend" class="weight-legend" aria-label="Co-occurrence count color legend"></div>
+            <p class="legend-note">Color uses a square-root scale; labels show raw co-occurrence counts. Gray means no record or below the current threshold; the diagonal does not show self-relationships.</p>
+          </div>
+          <ul id="accessible-relationships" class="sr-only" aria-label="Accessible list of relationships"></ul>
+          <p id="interaction-status" class="sr-only" aria-live="polite"></p>
+        </section>
+
+        <aside id="detail-panel" class="detail-panel" aria-label="Reading guide and character details" tabindex="-1">
+          <h2>How to read</h2>
+          <p>Rows and columns show the same set of characters; darker cells indicate more co-occurrences. Hover over or click a cell to inspect a pair.</p>
+          <p class="community-note">Communities are computed from the weighted network. They describe textual co-occurrence patterns—not families, alliances, or judgments about character relationships.</p>
+          <div id="community-legend" class="community-legend"></div>
+          <div id="exploration-prompts" class="exploration-prompts"></div>
+          <details class="methodology">
+            <summary>Methodology</summary>
+            <p id="methodology-text"></p>
+          </details>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <p>Rows and columns show the same set of characters. The matrix is symmetric: mirrored cells represent one undirected relationship. A co-occurrence means two character names appear within 15 words of each other in <em>A Storm of Swords</em>; it does not imply direct interaction, friendship, or hostility.</p>
+      <p>Source: <a href="https://github.com/melaniewalsh/sample-social-network-datasets/tree/master/sample-datasets/game-of-thrones" target="_blank" rel="noreferrer">Melanie Walsh’s character co-occurrence dataset</a> · Counts are computed from the local CSV files.</p>
+    </footer>
+  </main>
+</body>
+</html>
